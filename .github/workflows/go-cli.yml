@@ -1,0 +1,77 @@
+name: Go CI (lambdas-packer)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "cmd/**"
+      - "internal/**"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/go-*.yml"
+  push:
+    branches: [main]
+    paths:
+      - "cmd/**"
+      - "internal/**"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/go-*.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  fmt:
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-fmt.yml@6a9b12a1c8b8a6a8ba0002a8077a1713ddf31be8
+    with:
+      working-directory: .
+
+  lint:
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-lint.yml@6a9b12a1c8b8a6a8ba0002a8077a1713ddf31be8
+    needs: [fmt]
+    with:
+      working-directory: .
+
+  test:
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-test.yml@6a9b12a1c8b8a6a8ba0002a8077a1713ddf31be8
+    needs: [fmt]
+    with:
+      working-directory: .
+      run-govulncheck: true
+      coverage-artifact-name: lambdas-packer-coverage
+
+  build:
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-build.yml@6a9b12a1c8b8a6a8ba0002a8077a1713ddf31be8
+    needs: [fmt]
+    with:
+      working-directory: .
+
+  coverage:
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-coverage.yml@6a9b12a1c8b8a6a8ba0002a8077a1713ddf31be8
+    needs: [test]
+    with:
+      working-directory: .
+      coverage-artifact-name: lambdas-packer-coverage-${{ github.sha }}
+      coverage-threshold: 0
+
+  docs:
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-docs.yml@6a9b12a1c8b8a6a8ba0002a8077a1713ddf31be8
+    needs: [fmt]
+    with:
+      working-directory: .
+      require-package-docs: true
+
+  security:
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-security.yml@6a9b12a1c8b8a6a8ba0002a8077a1713ddf31be8
+    with:
+      working-directory: .
+
+  semgrep:
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-semgrep.yml@6a9b12a1c8b8a6a8ba0002a8077a1713ddf31be8
+    with:
+      working-directory: .
