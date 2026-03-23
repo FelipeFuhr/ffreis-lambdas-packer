@@ -56,7 +56,6 @@ jobs:
     needs: [test]
     with:
       working-directory: .
-      coverage-artifact-name: lambdas-packer-coverage-${{ github.sha }}
       coverage-threshold: 0
 
   docs:
