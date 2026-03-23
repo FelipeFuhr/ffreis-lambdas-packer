@@ -1,0 +1,22 @@
+name: Workflow Lint (actionlint)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  actionlint:
+    name: actionlint
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-actionlint.yml@b99f5a3e0c87c6cc45f630b7bc24a0cc6eba148e
+    with:
+      working-directory: .

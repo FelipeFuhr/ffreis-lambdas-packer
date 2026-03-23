@@ -2,6 +2,8 @@ name: SonarCloud
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
   schedule:
@@ -16,6 +18,7 @@ permissions:
 
 jobs:
   sonar:
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
     uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-sonar.yml@6a9b12a1c8b8a6a8ba0002a8077a1713ddf31be8
     secrets:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

@@ -2,6 +2,8 @@ name: Go Mutation (lambdas-packer)
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
   schedule:
     - cron: "0 2 * * 0" # Sundays 02:00 UTC
 
