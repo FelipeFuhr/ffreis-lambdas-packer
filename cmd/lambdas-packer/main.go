@@ -8,10 +8,11 @@ import (
 	"io"
 	"os"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 
-	"github.com/FelipeFuhr/ffreis-lambdas-packer/internal/packer"
+	"github.com/felipefuhr/ffreis-lambdas-packer/internal/packer"
 )
 
 type options struct {
@@ -79,7 +80,7 @@ func run(args []string) int {
 		return 1
 	}
 
-	fmt.Printf("done: uploaded=%d deleted=%d skipped=%d\n", len(plan.Uploads), len(plan.Deletes), plan.Skipped)
+	fmt.Printf("done: uploaded=%d deleted=%d\n", len(plan.Uploads), len(plan.Deletes))
 	return 0
 }
 
@@ -108,7 +109,7 @@ func parseArgs(args []string) (options, error) {
 	return opts, nil
 }
 
-func loadAWSConfig(ctx context.Context, region string) (config.Config, error) {
+func loadAWSConfig(ctx context.Context, region string) (aws.Config, error) {
 	if region != "" {
 		return config.LoadDefaultConfig(ctx, config.WithRegion(region))
 	}
@@ -126,4 +127,3 @@ func printPlan(plan packer.Plan, bucket, prefix string, dryRun bool) {
 	fmt.Printf("uploads: %d\n", len(plan.Uploads))
 	fmt.Printf("deletes: %d\n", len(plan.Deletes))
 }
-

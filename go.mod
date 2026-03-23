@@ -1,4 +1,4 @@
-module github.com/FelipeFuhr/ffreis-lambdas-packer
+module github.com/felipefuhr/ffreis-lambdas-packer
 
 go 1.22
 

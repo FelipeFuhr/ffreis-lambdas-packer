@@ -17,14 +17,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
-type Options struct {
-	Bucket      string
-	Prefix      string
-	ArtifactDir string
-	DryRun      bool
-	NoDelete    bool
-}
-
 type LocalArtifact struct {
 	Function string
 	// If ZipPath is non-empty, it points to an already zipped artifact.
@@ -37,7 +29,6 @@ type LocalArtifact struct {
 type Plan struct {
 	Uploads []LocalArtifact
 	Deletes []string
-	Skipped int
 }
 
 func NormalizePrefix(prefix string) (string, error) {
@@ -74,6 +65,8 @@ func DiscoverLocalArtifacts(artifactDir, prefix string) ([]LocalArtifact, error)
 				Key:      prefix + fn + ".zip",
 			})
 			continue
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return nil, err
 		}
 
 		rawPath := filepath.Join(fnDir, "bootstrap")
@@ -84,6 +77,8 @@ func DiscoverLocalArtifacts(artifactDir, prefix string) ([]LocalArtifact, error)
 				Key:      prefix + fn + ".zip",
 			})
 			continue
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return nil, err
 		}
 
 		// Fallback: if there is exactly one regular file in the directory, zip it.
@@ -165,7 +160,7 @@ func BuildPlan(local []LocalArtifact, remote map[string]struct{}, noDelete bool)
 		sort.Strings(deletes)
 	}
 
-	return Plan{Uploads: local, Deletes: deletes, Skipped: 0}
+	return Plan{Uploads: local, Deletes: deletes}
 }
 
 func PutArtifact(ctx context.Context, client *s3.Client, bucket string, a LocalArtifact) error {
@@ -285,4 +280,3 @@ func batchKeys(keys []string, size int) [][]string {
 	}
 	return out
 }
-
