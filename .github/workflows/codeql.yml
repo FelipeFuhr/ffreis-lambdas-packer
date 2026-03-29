@@ -23,7 +23,7 @@ concurrency:
 jobs:
   codeql:
     name: CodeQL
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-codeql.yml@b99f5a3e0c87c6cc45f630b7bc24a0cc6eba148e
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-codeql.yml@c3e3e0a44d4b79697f1babaa9bf287d1b264da52
     with:
       languages: go
       source-root: .
