@@ -204,6 +204,52 @@ func TestBuildPlanDeleteEmpty(t *testing.T) {
 	}
 }
 
+func TestPutArtifact_ErrWhenNoPaths(t *testing.T) {
+	t.Parallel()
+
+	err := PutArtifact(context.Background(), nil, "bucket", LocalArtifact{Function: "fn", Key: "p/fn.zip"})
+	if err == nil {
+		t.Fatalf("err = nil, want error")
+	}
+}
+
+func TestDeleteKeys_EmptyNoOp(t *testing.T) {
+	t.Parallel()
+
+	if err := DeleteKeys(context.Background(), nil, "bucket", nil); err != nil {
+		t.Fatalf("err = %v, want nil", err)
+	}
+}
+
+func TestBatchKeys_DefaultSizeWhenInvalid(t *testing.T) {
+	t.Parallel()
+
+	keys := make([]string, 1001)
+	for i := range keys {
+		keys[i] = "k"
+	}
+	batches := batchKeys(keys, 0)
+	if len(batches) != 2 {
+		t.Fatalf("len(batches) = %d, want 2", len(batches))
+	}
+	if len(batches[0]) != 1000 || len(batches[1]) != 1 {
+		t.Fatalf("batch sizes = %d/%d, want 1000/1", len(batches[0]), len(batches[1]))
+	}
+}
+
+func TestBatchKeys_SplitsBySize(t *testing.T) {
+	t.Parallel()
+
+	keys := []string{"a", "b", "c", "d", "e"}
+	batches := batchKeys(keys, 2)
+	if len(batches) != 3 {
+		t.Fatalf("len(batches) = %d, want 3", len(batches))
+	}
+	if len(batches[0]) != 2 || len(batches[1]) != 2 || len(batches[2]) != 1 {
+		t.Fatalf("unexpected batch sizes: %d/%d/%d", len(batches[0]), len(batches[1]), len(batches[2]))
+	}
+}
+
 type fakeS3 struct {
 	putCalls    []s3.PutObjectInput
 	putBodies   [][]byte
