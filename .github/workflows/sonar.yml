@@ -18,10 +18,69 @@ permissions:
 
 jobs:
   sonar:
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
-    # nosemgrep: generic.secrets.security.detected-sonarqube-docs-api-key.detected-sonarqube-docs-api-key
-    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-sonar.yml@ed2f7d29467bf1fd6ec40df3953b3ee128ba3f04
-    secrets:
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-    with:
-      working-directory: .
+    name: SonarCloud
+    runs-on: ubuntu-latest
+    # Set repository variable SONAR_ENABLED=false to skip this job entirely.
+    # Default: runs. If SONAR_TOKEN is missing, fails explicitly with instructions.
+    #
+    # Skip running on forked PRs (secrets are not available).
+    if: vars.SONAR_ENABLED != 'false' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false)
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.8"
+          cache: true
+
+      - name: Verify SonarCloud configuration
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          missing=""
+          if [ -z "${SONAR_TOKEN}" ]; then
+            missing="${missing}  • SONAR_TOKEN (secret): your SonarCloud token — sonarcloud.io → My Account → Security\n"
+          fi
+          if [ ! -f "sonar-project.properties" ]; then
+            missing="${missing}  • sonar-project.properties (file): required to define sonar.projectKey and sonar.organization\n"
+          else
+            if ! grep -qE '^[[:space:]]*sonar[.]projectKey=' sonar-project.properties; then
+              missing="${missing}  • sonar.projectKey (in sonar-project.properties): project key must exist in SonarCloud\n"
+            fi
+            if ! grep -qE '^[[:space:]]*sonar[.]organization=' sonar-project.properties; then
+              missing="${missing}  • sonar.organization (in sonar-project.properties): SonarCloud organization slug\n"
+            fi
+          fi
+          if [ -n "${missing}" ]; then
+            echo "::error title=SonarCloud not configured::Missing configuration:"
+            printf "%b" "${missing}"
+            echo ""
+            echo "Add secrets: Settings → Secrets and variables → Actions → New repository secret"
+            echo "To skip this job entirely: Settings → Variables → add SONAR_ENABLED=false"
+            exit 1
+          fi
+
+      - name: Generate coverage for SonarCloud
+        run: |
+          go test ./... \
+            -coverprofile=coverage.out \
+            -covermode=atomic \
+            -count=1 \
+            -timeout=120s
+
+      - name: SonarCloud Scan
+        # nosemgrep: generic.secrets.security.detected-sonarqube-docs-api-key.detected-sonarqube-docs-api-key
+        uses: SonarSource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
+        with:
+          args: >
+            -Dsonar.go.coverage.reportPaths=coverage.out
+            -Dsonar.sources=.
+            -Dsonar.exclusions=vendor/**,**/*_test.go
+            -Dsonar.tests=.
+            -Dsonar.test.inclusions=**/*_test.go
