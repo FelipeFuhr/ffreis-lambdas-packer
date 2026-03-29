@@ -18,4 +18,3 @@ func mustWriteFile(t *testing.T, path string, data []byte) {
 		t.Fatal(err)
 	}
 }
-
