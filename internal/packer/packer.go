@@ -17,6 +17,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
+type s3PutDeleteClient interface {
+	PutObject(ctx context.Context, params *s3.PutObjectInput, optFns ...func(*s3.Options)) (*s3.PutObjectOutput, error)
+	DeleteObjects(ctx context.Context, params *s3.DeleteObjectsInput, optFns ...func(*s3.Options)) (*s3.DeleteObjectsOutput, error)
+}
+
 type LocalArtifact struct {
 	Function string
 	// If ZipPath is non-empty, it points to an already zipped artifact.
@@ -49,7 +54,7 @@ func DiscoverLocalArtifacts(artifactDir, prefix string) ([]LocalArtifact, error)
 		return nil, err
 	}
 
-	var out []LocalArtifact
+	out := make([]LocalArtifact, 0, len(entries))
 	for _, ent := range entries {
 		if !ent.IsDir() {
 			continue
@@ -57,58 +62,13 @@ func DiscoverLocalArtifacts(artifactDir, prefix string) ([]LocalArtifact, error)
 		fn := ent.Name()
 		fnDir := filepath.Join(artifactDir, fn)
 
-		zipPath := filepath.Join(fnDir, "bootstrap.zip")
-		if _, err := os.Stat(zipPath); err == nil {
-			out = append(out, LocalArtifact{
-				Function: fn,
-				ZipPath:  zipPath,
-				Key:      prefix + fn + ".zip",
-			})
-			continue
-		} else if !errors.Is(err, os.ErrNotExist) {
-			return nil, err
-		}
-
-		rawPath := filepath.Join(fnDir, "bootstrap")
-		if _, err := os.Stat(rawPath); err == nil {
-			out = append(out, LocalArtifact{
-				Function: fn,
-				RawPath:  rawPath,
-				Key:      prefix + fn + ".zip",
-			})
-			continue
-		} else if !errors.Is(err, os.ErrNotExist) {
-			return nil, err
-		}
-
-		// Fallback: if there is exactly one regular file in the directory, zip it.
-		files, err := os.ReadDir(fnDir)
+		art, ok, err := discoverArtifactForFunctionDir(fnDir, fn, prefix)
 		if err != nil {
 			return nil, err
 		}
-		var candidates []string
-		for _, f := range files {
-			if f.IsDir() {
-				continue
-			}
-			info, err := f.Info()
-			if err != nil {
-				return nil, err
-			}
-			if info.Mode().IsRegular() {
-				candidates = append(candidates, filepath.Join(fnDir, f.Name()))
-			}
+		if ok {
+			out = append(out, art)
 		}
-		if len(candidates) == 1 {
-			out = append(out, LocalArtifact{
-				Function: fn,
-				RawPath:  candidates[0],
-				Key:      prefix + fn + ".zip",
-			})
-			continue
-		}
-
-		return nil, fmt.Errorf("no artifact found for %q (expected bootstrap.zip, bootstrap, or single file)", fnDir)
 	}
 
 	if len(out) == 0 {
@@ -119,7 +79,79 @@ func DiscoverLocalArtifacts(artifactDir, prefix string) ([]LocalArtifact, error)
 	return out, nil
 }
 
-func ListRemoteZips(ctx context.Context, client *s3.Client, bucket, prefix string) (map[string]struct{}, error) {
+func discoverArtifactForFunctionDir(fnDir, function, prefix string) (LocalArtifact, bool, error) {
+	key := prefix + function + artifactZipExt
+
+	zipPath := filepath.Join(fnDir, artifactBootstrapZip)
+	exists, err := statExists(zipPath)
+	if err != nil {
+		return LocalArtifact{}, false, err
+	}
+	if exists {
+		return LocalArtifact{Function: function, ZipPath: zipPath, Key: key}, true, nil
+	}
+
+	rawPath := filepath.Join(fnDir, artifactBootstrap)
+	exists, err = statExists(rawPath)
+	if err != nil {
+		return LocalArtifact{}, false, err
+	}
+	if exists {
+		return LocalArtifact{Function: function, RawPath: rawPath, Key: key}, true, nil
+	}
+
+	single, ok, err := singleRegularFile(fnDir)
+	if err != nil {
+		return LocalArtifact{}, false, err
+	}
+	if ok {
+		return LocalArtifact{Function: function, RawPath: single, Key: key}, true, nil
+	}
+
+	return LocalArtifact{}, false, fmt.Errorf("no artifact found for %q (expected bootstrap.zip, bootstrap, or single file)", fnDir)
+}
+
+func statExists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	return false, err
+}
+
+func singleRegularFile(dir string) (string, bool, error) {
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		return "", false, err
+	}
+
+	var candidate string
+	for _, f := range files {
+		if f.IsDir() {
+			continue
+		}
+		info, err := f.Info()
+		if err != nil {
+			return "", false, err
+		}
+		if !info.Mode().IsRegular() {
+			continue
+		}
+		if candidate != "" {
+			return "", false, nil
+		}
+		candidate = filepath.Join(dir, f.Name())
+	}
+	if candidate == "" {
+		return "", false, nil
+	}
+	return candidate, true, nil
+}
+
+func ListRemoteZips(ctx context.Context, client s3.ListObjectsV2APIClient, bucket, prefix string) (map[string]struct{}, error) {
 	out := map[string]struct{}{}
 
 	p := s3.NewListObjectsV2Paginator(client, &s3.ListObjectsV2Input{
@@ -136,7 +168,7 @@ func ListRemoteZips(ctx context.Context, client *s3.Client, bucket, prefix strin
 				continue
 			}
 			key := *obj.Key
-			if strings.HasSuffix(key, ".zip") {
+			if strings.HasSuffix(key, artifactZipExt) {
 				out[key] = struct{}{}
 			}
 		}
@@ -163,7 +195,7 @@ func BuildPlan(local []LocalArtifact, remote map[string]struct{}, noDelete bool)
 	return Plan{Uploads: local, Deletes: deletes}
 }
 
-func PutArtifact(ctx context.Context, client *s3.Client, bucket string, a LocalArtifact) error {
+func PutArtifact(ctx context.Context, client s3PutDeleteClient, bucket string, a LocalArtifact) error {
 	switch {
 	case a.ZipPath != "":
 		f, err := os.Open(a.ZipPath)
@@ -175,7 +207,7 @@ func PutArtifact(ctx context.Context, client *s3.Client, bucket string, a LocalA
 			Bucket:      aws.String(bucket),
 			Key:         aws.String(a.Key),
 			Body:        f,
-			ContentType: aws.String("application/zip"),
+			ContentType: aws.String(contentTypeZip),
 		})
 		return err
 	case a.RawPath != "":
@@ -185,7 +217,7 @@ func PutArtifact(ctx context.Context, client *s3.Client, bucket string, a LocalA
 	}
 }
 
-func putZippedRaw(ctx context.Context, client *s3.Client, bucket, key, rawPath string) error {
+func putZippedRaw(ctx context.Context, client s3PutDeleteClient, bucket, key, rawPath string) error {
 	rawFile, err := os.Open(rawPath)
 	if err != nil {
 		return err
@@ -215,16 +247,16 @@ func putZippedRaw(ctx context.Context, client *s3.Client, bucket, key, rawPath s
 		Bucket:      aws.String(bucket),
 		Key:         aws.String(key),
 		Body:        pr,
-		ContentType: aws.String("application/zip"),
+		ContentType: aws.String(contentTypeZip),
 	})
 	return err
 }
 
-func DeleteKeys(ctx context.Context, client *s3.Client, bucket string, keys []string) error {
+func DeleteKeys(ctx context.Context, client s3PutDeleteClient, bucket string, keys []string) error {
 	if len(keys) == 0 {
 		return nil
 	}
-	for _, batch := range batchKeys(keys, 1000) {
+	for _, batch := range batchKeys(keys, defaultDeleteBatchSize) {
 		if err := deleteObjects(ctx, client, bucket, batch); err != nil {
 			return err
 		}
@@ -232,7 +264,7 @@ func DeleteKeys(ctx context.Context, client *s3.Client, bucket string, keys []st
 	return nil
 }
 
-func deleteObjects(ctx context.Context, client *s3.Client, bucket string, keys []string) error {
+func deleteObjects(ctx context.Context, client s3PutDeleteClient, bucket string, keys []string) error {
 	if len(keys) == 0 {
 		return nil
 	}
@@ -258,16 +290,16 @@ func deleteObjects(ctx context.Context, client *s3.Client, bucket string, keys [
 			parts = append(parts, fmt.Sprintf("%s: %s", *e.Key, *e.Message))
 		}
 		if len(parts) > 0 {
-			return fmt.Errorf("delete errors: %s", strings.Join(parts, "; "))
+			return fmt.Errorf("%s: %s", errDeleteErrorsPrefix, strings.Join(parts, "; "))
 		}
-		return errors.New("delete errors")
+		return errors.New(errDeleteErrorsPrefix)
 	}
 	return nil
 }
 
 func batchKeys(keys []string, size int) [][]string {
 	if size <= 0 {
-		size = 1000
+		size = defaultDeleteBatchSize
 	}
 	var out [][]string
 	for len(keys) > 0 {

@@ -86,15 +86,15 @@ func run(args []string) int {
 
 func parseArgs(args []string) (options, error) {
 	var opts options
-	fs := flag.NewFlagSet("lambdas-packer", flag.ContinueOnError)
+	fs := flag.NewFlagSet(cliName, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
-	fs.StringVar(&opts.bucket, "bucket", "", "S3 bucket name (required)")
-	fs.StringVar(&opts.prefix, "prefix", "", "S3 key prefix (required, non-empty; e.g. lambdas/dev/)")
-	fs.StringVar(&opts.artifactDir, "artifact-dir", "lambdas/target/lambda", "Artifact dir containing */bootstrap.zip or */bootstrap")
-	fs.StringVar(&opts.region, "region", "", "AWS region override (optional)")
-	fs.BoolVar(&opts.dryRun, "dry-run", false, "Print planned actions without changing S3")
-	fs.BoolVar(&opts.noDelete, "no-delete", false, "Upload/update only (do not delete remote extras)")
+	fs.StringVar(&opts.bucket, flagBucket, "", "S3 bucket name (required)")
+	fs.StringVar(&opts.prefix, flagPrefix, "", "S3 key prefix (required, non-empty; e.g. lambdas/dev/)")
+	fs.StringVar(&opts.artifactDir, flagArtifactDir, "lambdas/target/lambda", "Artifact dir containing */bootstrap.zip or */bootstrap")
+	fs.StringVar(&opts.region, flagRegion, "", "AWS region override (optional)")
+	fs.BoolVar(&opts.dryRun, flagDryRun, false, "Print planned actions without changing S3")
+	fs.BoolVar(&opts.noDelete, flagNoDelete, false, "Upload/update only (do not delete remote extras)")
 
 	if err := fs.Parse(args); err != nil {
 		return options{}, err
@@ -117,13 +117,13 @@ func loadAWSConfig(ctx context.Context, region string) (aws.Config, error) {
 }
 
 func printPlan(plan packer.Plan, bucket, prefix string, dryRun bool) {
-	mode := "apply"
+	mode := modeApply
 	if dryRun {
-		mode = "dry-run"
+		mode = modeDryRun
 	}
-	fmt.Printf("lambdas-packer (%s)\n", mode)
-	fmt.Printf("bucket: %s\n", bucket)
-	fmt.Printf("prefix: %s\n", prefix)
+	fmt.Printf("%s (%s)\n", cliName, mode)
+	fmt.Printf("%s: %s\n", labelBucket, bucket)
+	fmt.Printf("%s: %s\n", labelPrefix, prefix)
 	fmt.Printf("uploads: %d\n", len(plan.Uploads))
 	fmt.Printf("deletes: %d\n", len(plan.Deletes))
 }
