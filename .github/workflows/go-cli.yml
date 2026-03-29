@@ -27,18 +27,18 @@ permissions:
 
 jobs:
   fmt:
-    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-fmt.yml@6a9b12a1c8b8a6a8ba0002a8077a1713ddf31be8
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-fmt.yml@main
     with:
       working-directory: .
 
   lint:
-    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-lint.yml@6a9b12a1c8b8a6a8ba0002a8077a1713ddf31be8
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-lint.yml@main
     needs: [fmt]
     with:
       working-directory: .
 
   test:
-    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-test.yml@6a9b12a1c8b8a6a8ba0002a8077a1713ddf31be8
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-test.yml@main
     needs: [fmt]
     with:
       working-directory: .
@@ -46,31 +46,31 @@ jobs:
       coverage-artifact-name: lambdas-packer-coverage
 
   build:
-    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-build.yml@6a9b12a1c8b8a6a8ba0002a8077a1713ddf31be8
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-build.yml@main
     needs: [fmt]
     with:
       working-directory: .
 
   coverage:
-    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-coverage.yml@6a9b12a1c8b8a6a8ba0002a8077a1713ddf31be8
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-coverage.yml@main
     needs: [test]
     with:
       working-directory: .
       coverage-threshold: 0
 
   docs:
-    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-docs.yml@6a9b12a1c8b8a6a8ba0002a8077a1713ddf31be8
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-docs.yml@main
     needs: [fmt]
     with:
       working-directory: .
       require-package-docs: true
 
   security:
-    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-security.yml@6a9b12a1c8b8a6a8ba0002a8077a1713ddf31be8
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-security.yml@main
     with:
       working-directory: .
 
   semgrep:
-    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-semgrep.yml@6a9b12a1c8b8a6a8ba0002a8077a1713ddf31be8
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-semgrep.yml@main
     with:
       working-directory: .

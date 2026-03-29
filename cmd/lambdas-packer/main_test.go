@@ -2,12 +2,14 @@ package main
 
 import "testing"
 
+const testExpectedErrorGotNil = "expected error, got nil"
+
 func TestParseArgsRequiresBucket(t *testing.T) {
 	t.Parallel()
 
 	_, err := parseArgs([]string{"--prefix", "p/"})
 	if err == nil {
-		t.Fatal("expected error, got nil")
+		t.Fatal(testExpectedErrorGotNil)
 	}
 }
 
@@ -16,7 +18,7 @@ func TestParseArgsRequiresPrefix(t *testing.T) {
 
 	_, err := parseArgs([]string{"--bucket", "b"})
 	if err == nil {
-		t.Fatal("expected error, got nil")
+		t.Fatal(testExpectedErrorGotNil)
 	}
 }
 
@@ -31,4 +33,3 @@ func TestParseArgsOK(t *testing.T) {
 		t.Fatalf("unexpected opts: %#v", opts)
 	}
 }
-

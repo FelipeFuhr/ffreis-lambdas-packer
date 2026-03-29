@@ -19,7 +19,7 @@ permissions:
 jobs:
   sonar:
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
-    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-sonar.yml@6a9b12a1c8b8a6a8ba0002a8077a1713ddf31be8
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-sonar.yml@main
     secrets:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
     with:

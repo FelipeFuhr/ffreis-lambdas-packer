@@ -80,9 +80,9 @@ func DiscoverLocalArtifacts(artifactDir, prefix string) ([]LocalArtifact, error)
 }
 
 func discoverArtifactForFunctionDir(fnDir, function, prefix string) (LocalArtifact, bool, error) {
-	key := prefix + function + ".zip"
+	key := prefix + function + artifactZipExt
 
-	zipPath := filepath.Join(fnDir, "bootstrap.zip")
+	zipPath := filepath.Join(fnDir, artifactBootstrapZip)
 	exists, err := statExists(zipPath)
 	if err != nil {
 		return LocalArtifact{}, false, err
@@ -91,7 +91,7 @@ func discoverArtifactForFunctionDir(fnDir, function, prefix string) (LocalArtifa
 		return LocalArtifact{Function: function, ZipPath: zipPath, Key: key}, true, nil
 	}
 
-	rawPath := filepath.Join(fnDir, "bootstrap")
+	rawPath := filepath.Join(fnDir, artifactBootstrap)
 	exists, err = statExists(rawPath)
 	if err != nil {
 		return LocalArtifact{}, false, err
@@ -168,7 +168,7 @@ func ListRemoteZips(ctx context.Context, client s3.ListObjectsV2APIClient, bucke
 				continue
 			}
 			key := *obj.Key
-			if strings.HasSuffix(key, ".zip") {
+			if strings.HasSuffix(key, artifactZipExt) {
 				out[key] = struct{}{}
 			}
 		}
@@ -207,7 +207,7 @@ func PutArtifact(ctx context.Context, client s3PutDeleteClient, bucket string, a
 			Bucket:      aws.String(bucket),
 			Key:         aws.String(a.Key),
 			Body:        f,
-			ContentType: aws.String("application/zip"),
+			ContentType: aws.String(contentTypeZip),
 		})
 		return err
 	case a.RawPath != "":
@@ -247,7 +247,7 @@ func putZippedRaw(ctx context.Context, client s3PutDeleteClient, bucket, key, ra
 		Bucket:      aws.String(bucket),
 		Key:         aws.String(key),
 		Body:        pr,
-		ContentType: aws.String("application/zip"),
+		ContentType: aws.String(contentTypeZip),
 	})
 	return err
 }
@@ -256,7 +256,7 @@ func DeleteKeys(ctx context.Context, client s3PutDeleteClient, bucket string, ke
 	if len(keys) == 0 {
 		return nil
 	}
-	for _, batch := range batchKeys(keys, 1000) {
+	for _, batch := range batchKeys(keys, defaultDeleteBatchSize) {
 		if err := deleteObjects(ctx, client, bucket, batch); err != nil {
 			return err
 		}
@@ -290,16 +290,16 @@ func deleteObjects(ctx context.Context, client s3PutDeleteClient, bucket string,
 			parts = append(parts, fmt.Sprintf("%s: %s", *e.Key, *e.Message))
 		}
 		if len(parts) > 0 {
-			return fmt.Errorf("delete errors: %s", strings.Join(parts, "; "))
+			return fmt.Errorf("%s: %s", errDeleteErrorsPrefix, strings.Join(parts, "; "))
 		}
-		return errors.New("delete errors")
+		return errors.New(errDeleteErrorsPrefix)
 	}
 	return nil
 }
 
 func batchKeys(keys []string, size int) [][]string {
 	if size <= 0 {
-		size = 1000
+		size = defaultDeleteBatchSize
 	}
 	var out [][]string
 	for len(keys) > 0 {
