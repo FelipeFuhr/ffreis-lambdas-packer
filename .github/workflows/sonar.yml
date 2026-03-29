@@ -18,7 +18,9 @@ permissions:
 
 jobs:
   sonar:
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
+    # Disabled by default (avoids failing when SONAR_TOKEN is not configured).
+    # Enable explicitly by setting repository variable: SONAR_ENABLED=true
+    if: ${{ vars.SONAR_ENABLED == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false) }}
     # nosemgrep: generic.secrets.security.detected-sonarqube-docs-api-key.detected-sonarqube-docs-api-key
     uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-sonar.yml@ed2f7d29467bf1fd6ec40df3953b3ee128ba3f04
     secrets:
