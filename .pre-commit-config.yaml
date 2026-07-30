@@ -1,1 +1,9 @@
-repos:
+# lefthook (see lefthook.yml) is this repo's hook runner — this file is NOT the
+# primary hook config. It exists only so lefthook's `pre-commit-compat` bridge
+# hook has a valid file to parse.
+#
+# A bare `repos:` with no value parses as YAML null, which pre-commit rejects
+# ("Expected array but got 'NoneType'") — that failed the hook and blocked
+# EVERY commit in this repo. An explicit empty list is the valid way to say
+# "no pre-commit-native hooks are configured here".
+repos: []
