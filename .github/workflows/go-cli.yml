@@ -27,14 +27,14 @@ jobs:
   fmt:
     permissions:
       contents: read
-    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-fmt.yml@3858e9e74c805067e454740b195372c7195f333b # v1.5.0
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-fmt.yml@2253ff2eda0a3d65f9eaca1a3ae117d32a449e20 # v1.2.0
     with:
       working-directory: .
 
   lint:
     permissions:
       contents: read
-    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-lint.yml@3858e9e74c805067e454740b195372c7195f333b # v1.5.0
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-lint.yml@2253ff2eda0a3d65f9eaca1a3ae117d32a449e20 # v1.2.0
     needs: [fmt]
     with:
       working-directory: .
@@ -42,7 +42,7 @@ jobs:
   test:
     permissions:
       contents: read
-    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-test.yml@3858e9e74c805067e454740b195372c7195f333b # v1.5.0
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-test.yml@2253ff2eda0a3d65f9eaca1a3ae117d32a449e20 # v1.2.0
     needs: [fmt]
     with:
       working-directory: .
@@ -52,7 +52,7 @@ jobs:
   build:
     permissions:
       contents: read
-    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-build.yml@3858e9e74c805067e454740b195372c7195f333b # v1.5.0
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-build.yml@2253ff2eda0a3d65f9eaca1a3ae117d32a449e20 # v1.2.0
     needs: [fmt]
     with:
       working-directory: .
@@ -60,7 +60,7 @@ jobs:
   coverage:
     permissions:
       contents: read
-    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-coverage.yml@3858e9e74c805067e454740b195372c7195f333b # v1.5.0
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-coverage.yml@2253ff2eda0a3d65f9eaca1a3ae117d32a449e20 # v1.2.0
     needs: [test]
     with:
       working-directory: .
@@ -69,7 +69,7 @@ jobs:
   docs:
     permissions:
       contents: read
-    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-docs.yml@3858e9e74c805067e454740b195372c7195f333b # v1.5.0
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-docs.yml@2253ff2eda0a3d65f9eaca1a3ae117d32a449e20 # v1.2.0
     needs: [fmt]
     with:
       working-directory: .
@@ -80,7 +80,7 @@ jobs:
       contents: read
       actions: read
       security-events: write
-    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-security.yml@3858e9e74c805067e454740b195372c7195f333b # v1.5.0
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-security.yml@2253ff2eda0a3d65f9eaca1a3ae117d32a449e20 # v1.2.0
     with:
       working-directory: .
 
@@ -89,6 +89,6 @@ jobs:
       contents: read
       actions: read
       security-events: write
-    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-semgrep.yml@3858e9e74c805067e454740b195372c7195f333b # v1.5.0
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-semgrep.yml@2253ff2eda0a3d65f9eaca1a3ae117d32a449e20 # v1.2.0
     with:
       working-directory: .

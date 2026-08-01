@@ -16,7 +16,7 @@ jobs:
   mutation:
     permissions:
       contents: read
-    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-mutation.yml@3858e9e74c805067e454740b195372c7195f333b # v1.5.0
+    uses: FelipeFuhr/ffreis-workflows-go/.github/workflows/go-mutation.yml@2253ff2eda0a3d65f9eaca1a3ae117d32a449e20 # v1.2.0
     with:
       working-directory: .
       packages: "./internal/..."
