@@ -16,6 +16,15 @@ import (
 	"github.com/felipefuhr/ffreis-lambdas-packer/internal/packer"
 )
 
+// s3ClientAPI is the minimal surface run/runSingleFile/runSync need from the
+// AWS S3 SDK client. Defined as an interface (ports-and-adapters) so tests can
+// substitute a fake instead of exercising real AWS calls.
+type s3ClientAPI interface {
+	PutObject(ctx context.Context, params *s3.PutObjectInput, optFns ...func(*s3.Options)) (*s3.PutObjectOutput, error)
+	DeleteObjects(ctx context.Context, params *s3.DeleteObjectsInput, optFns ...func(*s3.Options)) (*s3.DeleteObjectsOutput, error)
+	ListObjectsV2(ctx context.Context, params *s3.ListObjectsV2Input, optFns ...func(*s3.Options)) (*s3.ListObjectsV2Output, error)
+}
+
 type options struct {
 	bucket      string
 	prefix      string
@@ -58,7 +67,7 @@ func run(args []string) int {
 	return runSync(ctx, s3Client, opts)
 }
 
-func runSingleFile(ctx context.Context, s3Client *s3.Client, opts options) int {
+func runSingleFile(ctx context.Context, s3Client s3ClientAPI, opts options) int {
 	if opts.dryRun {
 		writeLine(os.Stdout, cliName+" (dry-run)")
 		writeLine(os.Stdout, labelBucket+": "+opts.bucket)
@@ -75,7 +84,7 @@ func runSingleFile(ctx context.Context, s3Client *s3.Client, opts options) int {
 	return 0
 }
 
-func runSync(ctx context.Context, s3Client *s3.Client, opts options) int {
+func runSync(ctx context.Context, s3Client s3ClientAPI, opts options) int {
 	prefix, err := packer.NormalizePrefix(opts.prefix)
 	if err != nil {
 		writeLine(os.Stderr, err.Error())
