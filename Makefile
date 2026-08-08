@@ -4,14 +4,22 @@ SHELL := /usr/bin/env bash
 GO ?= go
 GO_IMAGE ?= golang:1.22
 CONTAINER_RUNTIME ?= docker
+GITLEAKS ?= gitleaks
+GOVULNCHECK ?= govulncheck
 
-.PHONY: help fmt-check test vet check check-container fmt-check-container test-container vet-container
+COVERAGE_MIN       ?= 75
+MUTATION_PACKAGES  ?= ./internal/...
+MUTATION_THRESHOLD ?= 60
+
+.PHONY: help fmt-check test vet check check-container fmt-check-container test-container vet-container \
+	coverage-gate integration-coverage-gate mutation quality-gates secrets-scan-staged
 
 help:
 	@echo "Targets:"
 	@echo "  make check                (fmt-check + vet + test)"
 	@echo "  make check-container       (containerized fmt-check + vet + test)"
 	@echo "  make test|test-container"
+	@echo "  make coverage-gate|integration-coverage-gate|mutation|quality-gates"
 
 fmt-check:
 	@unformatted="$$(gofmt -l .)"; \
@@ -25,9 +33,48 @@ vet:
 	$(GO) vet ./...
 
 test:
-	$(GO) test ./... -count=1
+	$(GO) test -race -shuffle=on ./... -count=1
 
 check: fmt-check vet test
+
+## coverage-gate: Fail if test coverage falls below COVERAGE_MIN
+coverage-gate:
+	@tmpfile=$$(mktemp); \
+	$(GO) test -coverprofile="$$tmpfile" ./... > /dev/null; \
+	pct=$$($(GO) tool cover -func="$$tmpfile" | tail -1 | awk '{print $$3}' | tr -d '%'); \
+	echo "Coverage: $${pct}% (min: $(COVERAGE_MIN)%)"; \
+	awk -v pct="$$pct" -v min=$(COVERAGE_MIN) 'BEGIN { if (pct+0 < min+0) { print "FAIL: below minimum"; exit 1 } }'; \
+	rm -f "$$tmpfile"
+
+## integration-coverage-gate: run //go:build integration tests with coverage; no-op if none exist
+integration-coverage-gate:
+	@if ! grep -rl '^//go:build integration' --include='*.go' . >/dev/null 2>&1; then \
+		echo "No '//go:build integration' files found — skipping integration-coverage-gate."; \
+		exit 0; \
+	fi; \
+	tmpfile=$$(mktemp); \
+	$(GO) test -tags=integration -coverprofile="$$tmpfile" ./... > /dev/null; \
+	pct=$$($(GO) tool cover -func="$$tmpfile" | tail -1 | awk '{print $$3}' | tr -d '%'); \
+	echo "Integration coverage: $${pct}% (min: $(COVERAGE_MIN)%)"; \
+	awk -v pct="$$pct" -v min=$(COVERAGE_MIN) 'BEGIN { if (pct+0 < min+0) { print "FAIL: below minimum"; exit 1 } }'; \
+	rm -f "$$tmpfile"
+
+## mutation: run mutation testing with gremlins (slow — intended for CI/weekly)
+mutation:
+	@which gremlins >/dev/null 2>&1 || $(GO) install github.com/go-gremlins/gremlins/cmd/gremlins@latest
+	gremlins unleash --threshold-efficacy $(MUTATION_THRESHOLD) $(MUTATION_PACKAGES)
+
+## quality-gates: Full pre-push/pre-ready quality suite
+quality-gates:
+	@command -v $(GOVULNCHECK) >/dev/null 2>&1 || $(GO) install golang.org/x/vuln/cmd/govulncheck@latest
+	$(MAKE) test
+	$(MAKE) coverage-gate
+	$(GOVULNCHECK) ./...
+
+## secrets-scan-staged: scan staged diff for secrets
+secrets-scan-staged:
+	@command -v $(GITLEAKS) >/dev/null 2>&1 || (echo "Missing: gitleaks" && exit 1)
+	$(GITLEAKS) protect --staged --redact
 
 container-run = $(CONTAINER_RUNTIME) run --rm -t \
 	-v "$(PWD):/work" -w /work \
@@ -47,7 +94,7 @@ check-container:
 	$(call container-run,'make check')
 
 
-PLATFORM_STANDARDS_SHA ?= 3c787edb4e96ddea2e86b2add2c32139685e8db7  # v1.2.1
+PLATFORM_STANDARDS_SHA ?= 273842219190739c6b462c21331b234271446b13  # v1.10.0
 PLATFORM_STANDARDS_RAW ?= https://raw.githubusercontent.com/FelipeFuhr/ffreis-platform-standards
 
 install-act: ## Download pinned act binary into .bin/
