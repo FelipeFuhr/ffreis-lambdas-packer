@@ -5,6 +5,12 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     branches: [main]
+    paths:
+      - "**/*.go"
+      - "go.mod"
+      - "go.sum"
+      - "Makefile"
+      - ".github/workflows/**"
   schedule:
     - cron: "40 9 11 * *"  # monthly scattered (was: 0 2 * * 0)
 
