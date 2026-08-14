@@ -6,13 +6,22 @@ GO_IMAGE ?= golang:1.22
 CONTAINER_RUNTIME ?= docker
 GITLEAKS ?= gitleaks
 GOVULNCHECK ?= govulncheck
+GOLANGCI_LINT ?= golangci-lint
 
 COVERAGE_MIN       ?= 75
 MUTATION_PACKAGES  ?= ./internal/...
 MUTATION_THRESHOLD ?= 60
+FUZZ_PACKAGES      ?= ./...
+FUZZ_TIME          ?= 30s
 
-.PHONY: help fmt-check test vet check check-container fmt-check-container test-container vet-container \
+.PHONY: help build-all fuzz fmt-check lint test vet check check-container fmt-check-container test-container vet-container \
 	coverage-gate integration-coverage-gate mutation quality-gates secrets-scan-staged
+
+build-all: ## Compile all Go packages required by the lefthook release tier
+	$(GO) build ./...
+
+fuzz: ## Run all Fuzz* targets for FUZZ_TIME each (no-op when none exist)
+	@for pkg in $$($(GO) list $(FUZZ_PACKAGES)); do targets=$$($(GO) test -list 'Fuzz.*' "$$pkg" 2>/dev/null | grep '^Fuzz' || true); for target in $$targets; do $(GO) test -run='^$$' -fuzz="^$${target}$$" -fuzztime="$(FUZZ_TIME)" "$$pkg"; done; done
 
 help:
 	@echo "Targets:"
@@ -28,6 +37,9 @@ fmt-check:
 		printf "%s\n" $$unformatted; \
 		exit 1; \
 	fi
+
+lint:
+	$(GOLANGCI_LINT) run ./...
 
 vet:
 	$(GO) vet ./...
