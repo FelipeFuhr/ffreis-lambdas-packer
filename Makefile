@@ -39,7 +39,7 @@ fmt-check:
 	fi
 
 lint:
-	$(GOLANGCI_LINT) run
+	$(GOLANGCI_LINT) run ./...
 
 vet:
 	$(GO) vet ./...
