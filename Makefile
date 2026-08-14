@@ -6,6 +6,7 @@ GO_IMAGE ?= golang:1.22
 CONTAINER_RUNTIME ?= docker
 GITLEAKS ?= gitleaks
 GOVULNCHECK ?= govulncheck
+GOLANGCI_LINT ?= golangci-lint
 
 COVERAGE_MIN       ?= 75
 MUTATION_PACKAGES  ?= ./internal/...
@@ -13,7 +14,7 @@ MUTATION_THRESHOLD ?= 60
 FUZZ_PACKAGES      ?= ./...
 FUZZ_TIME          ?= 30s
 
-.PHONY: help build-all fuzz fmt-check test vet check check-container fmt-check-container test-container vet-container \
+.PHONY: help build-all fuzz fmt-check lint test vet check check-container fmt-check-container test-container vet-container \
 	coverage-gate integration-coverage-gate mutation quality-gates secrets-scan-staged
 
 build-all: ## Compile all Go packages required by the lefthook release tier
@@ -36,6 +37,9 @@ fmt-check:
 		printf "%s\n" $$unformatted; \
 		exit 1; \
 	fi
+
+lint:
+	$(GOLANGCI_LINT) run
 
 vet:
 	$(GO) vet ./...
