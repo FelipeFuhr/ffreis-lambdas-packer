@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/felipefuhr/ffreis-lambdas-packer/internal/packer"
+	"github.com/FelipeFuhr/ffreis-lambdas-packer/internal/packer"
 )
 
 func TestParseArgs_RequiresBucket(t *testing.T) {
