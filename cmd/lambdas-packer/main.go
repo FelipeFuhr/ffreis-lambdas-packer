@@ -13,7 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 
-	"github.com/felipefuhr/ffreis-lambdas-packer/internal/packer"
+	"github.com/FelipeFuhr/ffreis-lambdas-packer/internal/packer"
 )
 
 // s3ClientAPI is the minimal surface run/runSingleFile/runSync need from the
